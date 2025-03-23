@@ -11,6 +11,20 @@ const path = require("path");
 
 const app = new Koa();
 const router = new Router();
+const dataPath = path.join(__dirname, "data", "messages.json");
+
+// Загрузка сообщений из файла
+let messages = [];
+if (fs.existsSync(dataPath)) {
+  try {
+    const raw = fs.readFileSync(dataPath, "utf-8");
+    messages = JSON.parse(raw);
+  } catch (err) {
+    console.error("Ошибка чтения messages.json, файл будет сброшен:", err);
+    fs.writeFileSync(dataPath, "[]"); // сбрасываем повреждённый файл
+    messages = [];
+  }
+}
 
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -28,8 +42,6 @@ app.use(
   })
 );
 app.use(serve(uploadDir, { index: false }));
-
-const messages = [];
 
 const server = http.createServer(app.callback());
 const wss = new WebSocket.Server({ server });
@@ -70,6 +82,7 @@ router.post("/messages", (ctx) => {
   };
 
   messages.push(message);
+  fs.writeFileSync(dataPath, JSON.stringify(messages, null, 2));
   broadcastMessage(message);
   ctx.body = message;
 });
@@ -99,6 +112,7 @@ router.post("/upload", async (ctx) => {
   };
 
   messages.push(message);
+  fs.writeFileSync(dataPath, JSON.stringify(messages, null, 2));
   broadcastMessage(message);
   ctx.body = message;
 });
